@@ -54,6 +54,11 @@ Full reasoning in [HANDOVER.md](HANDOVER.md).
   at each stage, troubleshooting section.
 - **[HANDOVER.md](HANDOVER.md)** — project context, decisions made
   along the way, operational checks for future maintenance.
+- **[FUTURE.md](FUTURE.md)** — parked tasks, including a fleshed-out
+  NEO-M8N redundant-GPS plan that's ready to pick up.
+- **[dashboard/](dashboard/)** — optional MQTT status broadcast: a
+  Pi-side cron publisher, an importable Node-RED dashboard flow, and
+  a macOS SwiftBar menu-bar widget. All read off one retained topic.
 
 ## Status
 

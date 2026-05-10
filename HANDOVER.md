@@ -129,6 +129,14 @@ weeks of operation.
   every minute via cron, plus an HTTP endpoint on :7799 for
   reboot/shutdown from the dashboard. Not strictly part of this project
   but lives on the same Pi.
+- **chrony status broadcast:** a separate cron job
+  (`/usr/local/bin/gpsntp-mqtt-publish.sh`, every minute) snapshots
+  `chronyc -c tracking` plus the latest gpsd TPV/SKY and publishes a
+  retained JSON message to `shack/gpsntp/chrony` on the same broker.
+  Two consumers: a "GPS NTP" tab in the Node-RED dashboard, and a
+  macOS SwiftBar menu-bar widget that shows live stratum / offset /
+  sat count and is one click away from the dashboard. Scripts, flow
+  JSON, and install steps live in **`dashboard/`**.
 
 ## Operational checks (if something seems wrong)
 
@@ -149,7 +157,10 @@ sudo systemsetup -getnetworktimeserver  # Should report gpsntp.local
 ## Things explicitly *not* in scope
 
 - Any embedded-firmware development (the ESP32 path was dropped).
-- Mac menu-bar GPS app.
+- Mac menu-bar **GPS** app — i.e. a Mac app that drives a USB GPS
+  itself. The status-display widget under `dashboard/swiftbar/` is
+  fine and intentional: it only subscribes to the Pi's MQTT
+  broadcast, reading *time-server health*, not GPS data.
 - Changes to the SkimServer Mac codebase.
 - Feeding PPS into macOS directly — the Pi is the abstraction layer.
 
@@ -159,14 +170,16 @@ sudo systemsetup -getnetworktimeserver  # Should report gpsntp.local
    above. If everything is green, there's nothing to do; ask the user
    what they want to extend.
 2. **Common extension requests:**
-   - Add chrony metrics to the Node-RED RPi Fleet dashboard
-     (`chronyc -c tracking` outputs CSV that's trivial to publish over
-     MQTT).
+   - ~~Add chrony metrics to the Node-RED RPi Fleet dashboard~~ —
+     **done.** See `dashboard/` and the "chrony status broadcast"
+     entry under "Integration with the shack" above.
    - Install `log2ram` if the Pi has been running for many months and
      SD-card wear is a concern (BUILD.md "Optional" section).
    - Add a second GPS for redundancy (NEO-M8N + dedicated antenna)
-     under chrony as a second refclock — in case U3S RFI starts
-     impacting fix-hold.
+     under chrony as a second refclock — wiring, config, and
+     validation steps are written up in **FUTURE.md**. Originally
+     motivated by U3S RFI fears; that motivation is fading as the U3S
+     is being replaced, so this is now general hot-spare redundancy.
    - OLED status display showing fix/sat-count/offset.
 3. **Don't re-litigate ESP32 vs Pi** — that decision is made and the
    build is operational. If the user wants to redo it, they'll say so.

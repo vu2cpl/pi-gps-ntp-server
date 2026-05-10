@@ -484,6 +484,37 @@ disciplined from now on.)
 
 ---
 
+## Stage 11 — Status broadcast over MQTT (optional)
+
+If your LAN already runs an MQTT broker (the VU2CPL shack uses
+`192.168.1.169` alongside Node-RED for fleet monitoring), the Pi can
+publish a chrony + gpsd snapshot every minute. A Node-RED dashboard
+panel and a macOS SwiftBar menu-bar widget consume it for live
+visibility into stratum, offset, RMS, skew, root dispersion, and
+sat-count.
+
+Topic: `shack/gpsntp/chrony` — JSON, retained (so any new subscriber
+gets the latest snapshot the moment it connects).
+
+Scripts and full install live in **`dashboard/`**:
+
+| File | Role |
+|------|------|
+| `dashboard/gpsntp-mqtt-publish.sh`  | Pi-side publisher (parses `chronyc -c tracking` + `gpspipe -w`, builds JSON, calls `mosquitto_pub -r`) |
+| `dashboard/cron.d-gpsntp-mqtt`      | `/etc/cron.d` entry, every-minute schedule |
+| `dashboard/node-red-flow.json`      | Importable Node-RED flow with reference, offset gauge, RMS / skew / root-disp / GPS / last-update widgets |
+| `dashboard/swiftbar/gpsntp.30s.sh`  | macOS SwiftBar / xbar menu-bar plugin |
+| `dashboard/README.md`               | End-to-end install + verification steps |
+
+Pi-side dependencies: `apt install mosquitto-clients jq`.
+Mac-side: `brew install mosquitto && brew install --cask swiftbar`.
+
+The publisher is read-only — it shells out to `chronyc` and `gpspipe`,
+neither of which disturbs chrony or gpsd. Failure modes are limited to
+"didn't publish this minute"; the time service is unaffected.
+
+---
+
 ## Optional — Reduce SD card wear
 
 A 24/7 NTP server writes logs and chrony state continuously. SD cards

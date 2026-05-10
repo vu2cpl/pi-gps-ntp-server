@@ -1,0 +1,6 @@
+# /etc/cron.d/gpsntp-mqtt
+# Publish chrony + gpsd snapshot to MQTT every minute.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+* * * * * root /usr/local/bin/gpsntp-mqtt-publish.sh >/dev/null 2>&1
