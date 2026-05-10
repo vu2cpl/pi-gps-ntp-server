@@ -34,15 +34,18 @@ fix_mode=0
 sat_used=0
 sat_seen=0
 if command -v gpspipe >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
-  GPS_DATA="$(timeout 3 gpspipe -w -n 15 2>/dev/null || true)"
+  # Larger window so we're likely to catch a "fat" SKY record (the thin
+  # ones gpsd emits between full updates have no nSat / satellites array).
+  GPS_DATA="$(timeout 5 gpspipe -w -n 40 2>/dev/null || true)"
   if [ -n "$GPS_DATA" ]; then
     fix_mode=$(printf '%s\n' "$GPS_DATA" \
       | jq -rs '[.[]|select(.class=="TPV")|.mode] | last // 0' 2>/dev/null || echo 0)
+    # Take max across all SKY records in the window — robust against
+    # thin records that don't carry uSat / nSat / satellites.
     sat_used=$(printf '%s\n' "$GPS_DATA" \
-      | jq -rs '[.[]|select(.class=="SKY")|.uSat] | last // 0' 2>/dev/null || echo 0)
-    # gpsd doesn't always emit nSat; fall back to length of satellites array.
+      | jq -rs '[.[]|select(.class=="SKY")|.uSat // 0] | max // 0' 2>/dev/null || echo 0)
     sat_seen=$(printf '%s\n' "$GPS_DATA" \
-      | jq -rs '[.[]|select(.class=="SKY")|((.nSat) // ((.satellites // []) | length))] | last // 0' 2>/dev/null || echo 0)
+      | jq -rs '[.[]|select(.class=="SKY")|((.nSat) // ((.satellites // []) | length))] | max // 0' 2>/dev/null || echo 0)
   fi
 fi
 
