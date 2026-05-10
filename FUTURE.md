@@ -93,3 +93,52 @@ Both PPS refclocks become candidates. Chrony picks the lower-jitter
 one as `*` (system reference) and the other as `+` (combined) or `-`
 (not combined). On QLG1 fix loss, chrony silently fails over to the
 M8N — that's the point.
+
+## Restyle the chrony dashboard tile as a GitHub-style HTML card
+
+**Status:** parked. The current `dashboard/node-red-flow.json` ships
+seven separate `ui_text` / `ui_gauge` widgets in their own "GPS NTP"
+tab. The goal is to replace that with a single `ui_template` node
+rendering a self-contained card (header, stratum chip, key/value
+rows, GPS line, last-update footer) styled like a GitHub repo card —
+monospace numbers, subtle borders, light/dark adaptive — so it slots
+into the existing **main fleet dashboard** alongside the rpi-agent
+tiles, with no tab-of-its-own footprint.
+
+### Approach sketch
+
+- Replace the `function` + 7 widget nodes with one `function` → one
+  `ui_template` node, dropped into a group on the **existing fleet
+  dashboard tab** (not a new tab). The template receives the parsed
+  JSON payload via `msg`.
+- Card layout (HTML):
+  - Header row: hostname on the left, a coloured "S1 / S2 / —" chip
+    right-justified (green / amber / red by stratum).
+  - Two-column key/value table for the metrics (system offset, RMS,
+    root dispersion, skew, leap).
+  - GPS row: fix mode + sat ratio.
+  - Footer: muted "Updated Ns ago" with a `setInterval` to keep the
+    relative time fresh without re-rendering the whole card.
+- Styling: `font-family: ui-monospace, SFMono-Regular, Menlo;`
+  `border: 1px solid var(--nr-dashboard-widget-border);`
+  `border-radius: 6px; padding: 12px;`. Use Node-RED's CSS variables
+  so the card picks up the user's dashboard theme automatically.
+- The same ns / µs / ms picker used by `swiftbar/gpsntp.30s.sh`
+  (`fmt_offset`) moves into the template; the upstream `function`
+  node just hands raw fields through.
+
+### Where to drop it in the main dashboard
+
+The fleet dashboard already has per-host groups carrying rpi-agent
+telemetry. The cleanest placement is a new "Time" tile under the
+same tab/group as the gpsntp host's other widgets, sized to match
+the dashboard's existing grid.
+
+### Acceptance
+
+- One tile, one MQTT subscription, no separate "GPS NTP" tab.
+- Reads the same `shack/gpsntp/chrony` retained topic — no Pi-side
+  changes needed.
+- Visually consistent with the rest of the fleet dashboard, both
+  light and dark mode.
+- Relative "Updated Ns ago" advances client-side without flicker.
