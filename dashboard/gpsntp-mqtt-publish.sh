@@ -7,13 +7,16 @@
 # Mac SwiftBar plugin can pick it up.
 #
 # Install:
-#   sudo cp dashboard/gpsntp-mqtt-publish.sh /usr/local/bin/
-#   sudo chmod +x /usr/local/bin/gpsntp-mqtt-publish.sh
-#   sudo cp dashboard/cron.d-gpsntp-mqtt /etc/cron.d/gpsntp-mqtt
+#   sudo install -m 0755 dashboard/gpsntp-mqtt-publish.sh /usr/local/bin/
+#   sudo install -m 0644 dashboard/cron.d-gpsntp-mqtt    /etc/cron.d/gpsntp-mqtt
 #
 # Dependencies on the Pi:
-#   apt install mosquitto-clients jq
+#   sudo apt install -y mosquitto-clients jq
 #   (gpsd + chrony already installed by BUILD.md)
+#
+# Optional environment overrides (set in /etc/cron.d/gpsntp-mqtt):
+#   MQTT_BROKER=192.168.1.169     # broker host
+#   MQTT_TOPIC=shack/gpsntp/chrony
 #
 set -u
 

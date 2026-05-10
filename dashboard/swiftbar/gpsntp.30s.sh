@@ -2,10 +2,17 @@
 #
 # SwiftBar/xbar plugin — GPS NTP server live status from MQTT.
 #
-# Filename encodes refresh cadence (30s). Drop into:
-#   ~/Library/Application Support/SwiftBar/Plugins/  (SwiftBar)
-#   ~/Library/Application Support/xbar/plugins/      (xbar)
-# and chmod +x.
+# Filename encodes refresh cadence (30s). Drop into the configured
+# SwiftBar plugins folder:
+#   defaults read com.ameba.SwiftBar PluginDirectory
+# (default ~/Library/Application Support/SwiftBar/Plugins/, or
+# whichever folder you chose during SwiftBar's first-launch wizard)
+# or the equivalent xbar folder. chmod +x after copying.
+#
+# Optional environment overrides:
+#   MQTT_BROKER=192.168.1.169                   # broker host
+#   MQTT_TOPIC=shack/gpsntp/chrony              # topic
+#   NODE_RED_URL=http://192.168.1.169:1880/ui   # dropdown link target
 #
 # <swiftbar.title>GPS NTP Server</swiftbar.title>
 # <swiftbar.author>Manoj VU2CPL</swiftbar.author>
