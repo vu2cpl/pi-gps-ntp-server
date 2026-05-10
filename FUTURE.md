@@ -94,16 +94,17 @@ one as `*` (system reference) and the other as `+` (combined) or `-`
 (not combined). On QLG1 fix loss, chrony silently fails over to the
 M8N — that's the point.
 
-## Restyle the chrony dashboard tile as a GitHub-style HTML card
+## ~~Restyle the chrony dashboard tile as an HTML card~~ — done
 
-**Status:** parked. The current `dashboard/node-red-flow.json` ships
-seven separate `ui_text` / `ui_gauge` widgets in their own "GPS NTP"
-tab. The goal is to replace that with a single `ui_template` node
-rendering a self-contained card (header, stratum chip, key/value
-rows, GPS line, last-update footer) styled like a GitHub repo card —
-monospace numbers, subtle borders, light/dark adaptive — so it slots
-into the existing **main fleet dashboard** alongside the rpi-agent
-tiles, with no tab-of-its-own footprint.
+**Status:** done. `dashboard/node-red-flow.json` now ships a single
+`ui_template` carrying one self-contained card. The aesthetic ended
+up matching the user's existing fleet dashboard (dark `#0e151e`
+panels, cyan section dividers, off-white values with orange reserved
+for attention thresholds) rather than the GitHub Primer look that
+was originally proposed — see `dashboard/preview/chrony-card.html`
+for the live preview that drove the design, and
+`dashboard/chrony-card-template.html` for the bare template body
+ready to paste into a ui_template node.
 
 ### Approach sketch
 

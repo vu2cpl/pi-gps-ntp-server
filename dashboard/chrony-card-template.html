@@ -1,0 +1,255 @@
+<style>
+.gpsntp-card {
+  background: #0e151e;
+  border: 1px solid #1c2530;
+  border-radius: 8px;
+  width: 100%;
+  padding: 14px 16px 14px;
+  font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+  font-size: 13px;
+  color: #cdd6e0;
+  -webkit-font-smoothing: antialiased;
+  box-sizing: border-box;
+}
+.gpsntp-card .ttl {
+  color: #5cd0d6;
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0 0 10px;
+  letter-spacing: 0.02em;
+}
+.gpsntp-card .sect {
+  color: #5cd0d6;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  margin: 12px 0 8px;
+  user-select: none;
+}
+.gpsntp-card .sect:before, .gpsntp-card .sect:after {
+  content: "\2014\2014\2014";
+  color: #5cd0d6;
+  opacity: 0.7;
+  margin: 0 8px;
+  letter-spacing: -1px;
+}
+.gpsntp-card .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid #1a232c;
+  gap: 10px;
+}
+.gpsntp-card .row:last-of-type { border-bottom: none; }
+.gpsntp-card .lab {
+  color: #cdd6e0;
+  font-size: 12.5px;
+}
+.gpsntp-card .val {
+  color: #e6edf3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-feature-settings: "tnum";
+  font-size: 12.5px;
+}
+.gpsntp-card .val.attn { color: #e89a4a; }
+.gpsntp-card .chip {
+  display: inline-block;
+  padding: 1px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid currentColor;
+  background: transparent;
+  letter-spacing: 0.02em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-feature-settings: "tnum";
+  white-space: nowrap;
+}
+.gpsntp-card .chip.good { color: #5cd36e; }
+.gpsntp-card .chip.info { color: #5cd0d6; }
+.gpsntp-card .chip.warn { color: #e89a4a; }
+.gpsntp-card .chip.bad  { color: #e57373; }
+.gpsntp-card .gps-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #e6edf3;
+}
+.gpsntp-card .ftr {
+  margin-top: 12px;
+  padding-top: 9px;
+  border-top: 1px solid #1a232c;
+  display: flex;
+  justify-content: space-between;
+  color: #7d8896;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-feature-settings: "tnum";
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+</style>
+
+<div class="gpsntp-card">
+  <h3 class="ttl">🛰 {{data.title}}</h3>
+
+  <div class="sect">SYNC STATUS</div>
+
+  <div class="row">
+    <span class="lab">Reference</span>
+    <span class="chip" ng-class="data.ref_class">{{data.ref_text}}</span>
+  </div>
+  <div class="row">
+    <span class="lab">Stratum</span>
+    <span class="chip" ng-class="data.stratum_class">{{data.stratum}}</span>
+  </div>
+  <div class="row">
+    <span class="lab">System offset</span>
+    <span class="val" ng-class="{attn: data.sys_off_attn}">{{data.sys_off}}</span>
+  </div>
+  <div class="row">
+    <span class="lab">RMS offset</span>
+    <span class="val" ng-class="{attn: data.rms_attn}">{{data.rms}}</span>
+  </div>
+  <div class="row">
+    <span class="lab">Root dispersion</span>
+    <span class="val" ng-class="{attn: data.root_disp_attn}">{{data.root_disp}}</span>
+  </div>
+  <div class="row">
+    <span class="lab">Skew</span>
+    <span class="val" ng-class="{attn: data.skew_attn}">{{data.skew}}</span>
+  </div>
+  <div class="row">
+    <span class="lab">Leap</span>
+    <span class="val">{{data.leap}}</span>
+  </div>
+  <div class="row">
+    <span class="lab">GPS</span>
+    <span class="val gps-val">
+      <span class="chip" ng-class="data.fix_class">{{data.fix_text}}</span>{{data.sat_used}}&nbsp;/&nbsp;{{data.sat_seen}}
+    </span>
+  </div>
+
+  <div class="ftr">
+    <span>{{data.utc_time}}</span>
+    <span>{{data.ago}}</span>
+  </div>
+</div>
+
+<script>
+(function(scope) {
+  var DASH = '—';
+
+  scope.data = scope.data || {
+    title: 'GPS Time Server',
+    ts: 0,
+    ref_text: DASH, ref_class: 'info',
+    stratum: DASH, stratum_class: 'info',
+    sys_off: DASH, sys_off_attn: false,
+    rms: DASH, rms_attn: false,
+    root_disp: DASH, root_disp_attn: false,
+    skew: DASH, skew_attn: false,
+    leap: DASH,
+    fix_text: DASH, fix_class: 'info',
+    sat_used: DASH, sat_seen: DASH,
+    utc_time: DASH, ago: DASH
+  };
+
+  function fmtSigned(v) {
+    if (v === undefined || v === null) return DASH;
+    var sign = v >= 0 ? '+' : '-';
+    var a = Math.abs(v);
+    if (a < 1e-6) return sign + Math.round(a * 1e9) + ' ns';
+    if (a < 1e-3) return sign + (a * 1e6).toFixed(1) + ' µs';
+    if (a < 1)    return sign + (a * 1e3).toFixed(2) + ' ms';
+    return sign + a.toFixed(3) + ' s';
+  }
+  function fmtAbs(v) {
+    if (v === undefined || v === null) return DASH;
+    var a = Math.abs(v);
+    if (a < 1e-6) return Math.round(a * 1e9) + ' ns';
+    if (a < 1e-3) return (a * 1e6).toFixed(1) + ' µs';
+    if (a < 1)    return (a * 1e3).toFixed(2) + ' ms';
+    return a.toFixed(3) + ' s';
+  }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function utcTime(ts) {
+    if (!ts) return DASH;
+    var d = new Date(ts * 1000);
+    return pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ':' + pad2(d.getUTCSeconds()) + ' UTC';
+  }
+  function agoText(ts) {
+    if (!ts) return DASH;
+    var age = Math.max(0, Math.floor(Date.now() / 1000) - ts);
+    if (age < 60)   return age + ' s ago';
+    if (age < 3600) return Math.floor(age / 60) + ' m ago';
+    return Math.floor(age / 3600) + ' h ago';
+  }
+  function classifyRef(ref) {
+    if (ref === 'PPS' || ref === 'PPS2') return 'good';
+    if (ref === 'NMEA' || ref === 'NMEB') return 'warn';
+    return 'info';
+  }
+  function classifyStratum(s) {
+    if (s === 1) return 'good';
+    if (s >= 2 && s <= 15) return 'warn';
+    return 'bad';
+  }
+  function classifyFix(m) {
+    if (m === 3) return 'good';
+    if (m === 2) return 'warn';
+    return 'bad';
+  }
+
+  function rebuild(p) {
+    var sys = p.system_time_offset_s || 0;
+    var rms = p.rms_offset_s         || 0;
+    var rd  = p.root_dispersion_s    || 0;
+    var sk  = p.skew_ppm             || 0;
+    return {
+      title:           'GPS Time Server',
+      ts:              p.ts || 0,
+      ref_text:        p.ref_name || DASH,
+      ref_class:       classifyRef(p.ref_name),
+      stratum:         (p.stratum === undefined ? DASH : p.stratum),
+      stratum_class:   classifyStratum(p.stratum),
+      sys_off:         fmtSigned(sys),
+      sys_off_attn:    Math.abs(sys) > 1e-3,
+      rms:             fmtAbs(rms),
+      rms_attn:        rms > 1e-3,
+      root_disp:       fmtAbs(rd),
+      root_disp_attn:  rd > 5e-3,
+      skew:            sk.toFixed(3) + ' ppm',
+      skew_attn:       Math.abs(sk) > 1,
+      leap:            p.leap || DASH,
+      fix_text:        p.fix_mode === 3 ? '3D'
+                     : p.fix_mode === 2 ? '2D'
+                     : 'no fix',
+      fix_class:       classifyFix(p.fix_mode),
+      sat_used:        (p.sat_used === undefined ? DASH : p.sat_used),
+      sat_seen:        (p.sat_seen === undefined ? DASH : p.sat_seen),
+      utc_time:        utcTime(p.ts || 0),
+      ago:             agoText(p.ts || 0)
+    };
+  }
+
+  scope.$watch('msg', function(msg) {
+    if (!msg || !msg.payload) return;
+    scope.data = rebuild(msg.payload);
+  });
+
+  if (!scope._gpsntpTicker) {
+    scope._gpsntpTicker = setInterval(function() {
+      if (scope.data && scope.data.ts) {
+        scope.data.ago = agoText(scope.data.ts);
+        try { scope.$apply(); } catch (e) {}
+      }
+    }, 5000);
+    scope.$on('$destroy', function() {
+      clearInterval(scope._gpsntpTicker);
+      scope._gpsntpTicker = null;
+    });
+  }
+})(scope);
+</script>
