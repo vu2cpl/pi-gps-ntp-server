@@ -142,6 +142,19 @@ if ymin <= 0 <= ymax:
     y0 = sy(0)
     draw.line([(2, y0), (W - 2, y0)], fill='#3a4654', width=1)
 
+# Attention threshold band at +/- 1 ms (dashed, faint orange).
+# Drawn only when within the auto-scaled y range so it does not
+# squash the trace when offsets are healthy and sub-microsecond.
+def dashed(y, color, dash=4, gap=3):
+    x = 2
+    while x < W - 2:
+        x2 = min(x + dash, W - 2)
+        draw.line([(x, y), (x2, y)], fill=color, width=1)
+        x += dash + gap
+for threshold in (1e-3, -1e-3):
+    if ymin <= threshold <= ymax:
+        dashed(sy(threshold), '#7a4e1f')
+
 # Sparkline
 draw.line([(sx(x), sy(y)) for x, y in data], fill='#5cd0d6', width=2)
 img.save(dst)
