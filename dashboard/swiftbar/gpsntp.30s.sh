@@ -121,11 +121,25 @@ with open(src) as f:
 if len(data) < 2:
     sys.exit(0)
 
-W, H = 280, 60
-img = Image.new('RGB', (W, H), '#0e151e')
+W, H = 180, 48
+S = 2                                # supersample factor for AA
+WS, HS = W * S, H * S
+# Transparent background so the macOS menu's native chrome shows
+# through — no visible rectangle around the sparkline.
+img = Image.new('RGBA', (WS, HS), (0, 0, 0, 0))
 draw = ImageDraw.Draw(img)
 
 xs = [d[0] for d in data]; ys = [d[1] for d in data]
+
+# Light 3-point moving average to suppress per-poll jitter while
+# keeping spikes visible. Padded ends use the closest real sample.
+if len(ys) >= 3:
+    smoothed = [ys[0]]
+    for i in range(1, len(ys) - 1):
+        smoothed.append((ys[i-1] + ys[i] + ys[i+1]) / 3.0)
+    smoothed.append(ys[-1])
+    ys = smoothed
+
 xmin, xmax = min(xs), max(xs)
 ymin, ymax = min(ys + [0]), max(ys + [0])    # include zero in range
 span = max(ymax - ymin, 1e-9)
@@ -133,30 +147,35 @@ ymin -= span * 0.10
 ymax += span * 0.10
 
 def sx(x):
-    return 2 + (W - 4) * (x - xmin) / (xmax - xmin) if xmax > xmin else W / 2
+    return (2 + (W - 4) * (x - xmin) / (xmax - xmin)) * S if xmax > xmin else WS / 2
 def sy(y):
-    return H - 4 - (H - 8) * (y - ymin) / (ymax - ymin) if ymax > ymin else H / 2
+    return (H - 4 - (H - 8) * (y - ymin) / (ymax - ymin)) * S if ymax > ymin else HS / 2
 
-# Zero baseline (subtle)
+# Zero baseline (subtle hairline)
 if ymin <= 0 <= ymax:
     y0 = sy(0)
-    draw.line([(2, y0), (W - 2, y0)], fill='#3a4654', width=1)
+    draw.line([(2 * S, y0), ((W - 2) * S, y0)], fill='#3a4654', width=S)
 
 # Attention threshold band at +/- 1 ms (dashed, faint orange).
 # Drawn only when within the auto-scaled y range so it does not
 # squash the trace when offsets are healthy and sub-microsecond.
-def dashed(y, color, dash=4, gap=3):
-    x = 2
-    while x < W - 2:
-        x2 = min(x + dash, W - 2)
-        draw.line([(x, y), (x2, y)], fill=color, width=1)
+def dashed(y, color):
+    x = 2 * S
+    end = (W - 2) * S
+    dash, gap = 4 * S, 3 * S
+    while x < end:
+        x2 = min(x + dash, end)
+        draw.line([(x, y), (x2, y)], fill=color, width=S)
         x += dash + gap
 for threshold in (1e-3, -1e-3):
     if ymin <= threshold <= ymax:
         dashed(sy(threshold), '#7a4e1f')
 
-# Sparkline
-draw.line([(sx(x), sy(y)) for x, y in data], fill='#5cd0d6', width=2)
+# Sparkline (supersampled — line width 3*S downscales to ~1.5 px AA).
+draw.line([(sx(x), sy(y)) for x, y in zip(xs, ys)], fill='#5cd0d6', width=int(1.5 * S))
+
+# Downscale to target size with LANCZOS for smooth anti-aliasing.
+img = img.resize((W, H), Image.LANCZOS)
 img.save(dst)
 PY
   if [ -f "$GRAPH_PNG" ]; then
@@ -191,7 +210,7 @@ echo "$icon S$stratum  $sys_off_h | color=$color"
 
 # ----- dropdown -----
 echo "---"
-echo "$host  ($ref, stratum $stratum) | shell=/usr/bin/true terminal=false refresh=false"
+echo "$host · $ref · S$stratum | shell=/usr/bin/true terminal=false refresh=false"
 if [ -n "$GRAPH_B64" ]; then
   echo "---"
   echo "  | image=$GRAPH_B64"
@@ -203,10 +222,10 @@ echo "Root disp.:    $root_disp_h | font=Menlo shell=/usr/bin/true terminal=fals
 echo "Skew:          $skew ppm | font=Menlo shell=/usr/bin/true terminal=false refresh=false"
 echo "Leap:          $leap | font=Menlo shell=/usr/bin/true terminal=false refresh=false"
 echo "---"
-echo "GPS: $fix_str — $sat_used / $sat_seen sats used | font=Menlo shell=/usr/bin/true terminal=false refresh=false"
+echo "GPS: $fix_str  🛰 $sat_used/$sat_seen | font=Menlo shell=/usr/bin/true terminal=false refresh=false"
 echo "---"
 echo "Updated ${age}s ago | size=11"
 echo "---"
 echo "Refresh | refresh=true"
-echo "Open Node-RED dashboard | href=$DASHBOARD_URL"
-echo "SSH to gpsntp | href=ssh://vu2cpl@gpsntp.local"
+echo "Dashboard | href=$DASHBOARD_URL"
+echo "SSH | href=ssh://vu2cpl@gpsntp.local"
