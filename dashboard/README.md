@@ -112,6 +112,8 @@ Prereq: `node-red-dashboard` palette must be installed
 ```sh
 brew install mosquitto
 brew install --cask swiftbar
+# For the in-dropdown offset sparkline (optional — plugin works without it):
+python3 -m pip install --user Pillow
 ```
 
 Launch SwiftBar once and pick a plugins folder during the first-launch
