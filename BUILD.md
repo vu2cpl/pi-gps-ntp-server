@@ -525,11 +525,27 @@ handle this fine for a year or two but eventually wear out. Two options:
 Mounts `/var/log` as tmpfs, writes back to SD hourly:
 
 ```sh
-echo "deb http://packages.azlux.fr/debian/ bookworm main" | sudo tee /etc/apt/sources.list.d/azlux.list
+# Use the Pi's actual Debian codename — works on bookworm, trixie, etc.
+. /etc/os-release
+echo "deb http://packages.azlux.fr/debian/ ${VERSION_CODENAME} main" | \
+  sudo tee /etc/apt/sources.list.d/azlux.list
 sudo wget -O /etc/apt/trusted.gpg.d/azlux.gpg https://azlux.fr/repo.gpg
 sudo apt update
 sudo apt install -y log2ram
-sudo systemctl enable --now log2ram
+sudo systemctl enable log2ram
+sudo reboot
+```
+
+`enable --now` won't actually move `/var/log` to RAM on first install —
+log2ram's bind-mount has to happen before any service opens a log file,
+so the move only takes effect on next boot. Reboot is mandatory.
+
+After reboot, verify:
+
+```sh
+mount | grep log2ram                    # log2ram on /var/log type tmpfs ...
+systemctl is-active log2ram             # active
+df -h /var/log                          # tmpfs (~128M by default)
 ```
 
 ### Boot from USB SSD (better long-term)
