@@ -4,12 +4,13 @@
 
 **Operational.** Stratum-1 GPS-disciplined NTP server running on a
 Raspberry Pi 3B at `gpsntp.local` (192.168.1.158), serving the shack LAN.
-First brought up 2026-05-09.
+First brought up 2026-05-09 on a QLG1 tap; GPS source swapped to a
+dedicated **u-blox NEO-M8N** on 2026-05-11 (see "GPS swap" below).
 
-Performance achieved at handover:
+Performance after burn-in (M8N):
 - Reference ID: PPS, **Stratum 1**.
-- PPS error **±152 ns**, system clock **35 ns** slow of GPS truth.
-- Skew 0.009 ppm. Root dispersion 18 µs.
+- PPS error **±171 ns**, system clock **20 ns** fast of GPS truth.
+- Skew **0.004 ppm**. Root dispersion **22 µs**.
 - macOS Mac mini disciplined against this server, observed offset
   ~1–4 ms over the LAN (limited by macOS scheduling jitter, not the
   Pi or the network).
@@ -18,15 +19,35 @@ For the build procedure that produced this state, see **BUILD.md**.
 This file is for context: who, why, what was considered, and what was
 decided.
 
+## GPS swap — 2026-05-11
+
+Originally the Pi tapped the QRP Labs **QLG1** that was already feeding
+the U3S beacon, via voltage dividers on the QLG1's unused 6-way header
+(see Decision #5 below). On 2026-05-11 the GPS was swapped to a
+dedicated **u-blox NEO-M8N** (GY-NEO8MV2 breakout) for two reasons:
+
+1. The U3S is being retired, so the "share the QLG1 to avoid buying
+   another GPS" rationale evaporated.
+2. A dedicated 3.3 V-native GPS gives the Pi clean signal lines without
+   the voltage-divider stack, and removes any future RFI-vs-U3S risk
+   entirely.
+
+The Pi-side software stack didn't change. The M8N's TX feeds the same
+PL011 RX on GPIO15, and its PPS feeds the same GPIO18, so the existing
+`pps-gpio,gpiopin=18` overlay, `/etc/default/gpsd`, and chrony refclock
+config all just kept working — the swap was a pure hardware change.
+
 ## Who the user is
 
 - Manoj (VU2CPL), ham radio operator, Mac-based shack.
 - Runs **SkimServer Mac** (separate project) — a native macOS replacement
   for CW Skimmer Server, decoding CW + FT8/FT4 from a Red Pitaya HPSDR
   receiver and uploading spots to RBN and PSK Reporter.
-- Runs a **QRP Labs U3S** WSPR/QRSS beacon transmitter, with a **QLG1**
-  GPS receiver (MediaTek chipset, 10 ns RMS PPS) feeding it. Antenna has
-  sky view; the QLG1 normally carries 9–10 satellites with HDOP <1.
+- Used to run a **QRP Labs U3S** WSPR/QRSS beacon transmitter with a
+  **QLG1** GPS feeding it (MediaTek chipset, 10 ns RMS PPS, sky-view
+  antenna). The U3S is being retired and as of the 2026-05-11 swap the
+  QLG1 no longer feeds the Pi either — the Pi now has its own dedicated
+  NEO-M8N GPS.
 - This project gives the shack a **good local time source** for
   SkimServer, the U3S, the Red Pitaya, and any other shack PCs.
 
@@ -66,21 +87,28 @@ not the right answer for "best LAN time source with least custom code."
 ### 4. Raspberry Pi 3B + chrony + gpsd — chosen
 User had an unused Pi 3B on hand. No purchase needed.
 
-### 5. Tap the QLG1 already feeding the U3S — chosen
-Instead of buying a second GPS, tap TXD, PPS, and GND off the QLG1's
-unused **6-way connector** (the 4-way is already in use to the U3S; we
-don't disturb it). Both U3S and Pi consume the GPS in parallel; one
-antenna, one GPS module.
+### 5. Tap the QLG1 already feeding the U3S — chosen (initially)
+Instead of buying a separate GPS, the first build tapped TXD, PPS, and
+GND off the QLG1's unused **6-way connector** (the 4-way was already in
+use to the U3S; we left that alone). Both U3S and Pi consumed the GPS
+in parallel; one antenna, one GPS module.
 
 **Wiring trap solved:** QLG1 outputs are 5 V logic (74ACT08 buffers
 from +5 V rail). Pi GPIO is not 5 V tolerant. Solution: 2.2 kΩ + 3.3 kΩ
 voltage dividers on TXD and PPS, dropping 5 V → 3.0 V.
 
-**Known risk parked:** when the U3S transmits, it sits next to the
-QLG1 and may RFI-desensitize the GPS. Pre-existing problem of the
-U3S+QLG1 combo. If it disrupts NTP fix-hold in practice, fallback is a
-separate $15 NEO-M8N + antenna for the Pi. Re-evaluate after a few
-weeks of operation.
+This decision was reversed two days later — see Decision #6.
+
+### 6. Swap to dedicated NEO-M8N — chosen (2026-05-11)
+The U3S is being retired; once it's gone the QLG1 isn't holding anything
+together. Rather than leave the Pi hanging off the QLG1 (and the
+voltage-divider breadboard), the GPS was swapped to a dedicated
+**GY-NEO8MV2** (u-blox NEO-M8N) breakout. The M8N is 3.3 V-native, so
+the dividers came out; TX goes directly to GPIO15, PPS directly to
+GPIO18 — same Pi-side pinout, no software changes. The QLG1 has been
+retained as a stand-alone unit on its old antenna in case the U3S's
+replacement wants a GPS source later, but it's no longer wired to the
+Pi or to anything actively transmitting.
 
 ## Hardware summary (as built)
 
@@ -90,8 +118,7 @@ weeks of operation.
 | microSD card          | 16 GB+, Pi OS Lite 64-bit Trixie                |
 | Pi PSU                | 5 V 2.5 A micro-USB                             |
 | Ethernet              | Wired into LAN switch, DHCP-assigned 192.168.1.158 |
-| QRP Labs QLG1         | In service feeding U3S, sky-view antenna        |
-| Tap dividers          | 2 × 2.2 kΩ + 2 × 3.3 kΩ on a small breadboard   |
+| **GY-NEO8MV2 (NEO-M8N)** | Dedicated GPS for the Pi (since 2026-05-11). 3.3 V-native TX and PPS, direct to GPIO15/GPIO18. Patch antenna on u.FL pigtail with sky view. |
 
 ## OS / software stack (as built)
 
@@ -121,8 +148,10 @@ weeks of operation.
   disciplines against the Pi.
 - **SkimServer Mac:** no code changes. Uses system clock, which `timed`
   is now disciplining against the Pi.
-- **U3S:** unchanged; still has its own QLG1 connection on the 4-way
-  header. The Pi tap is electrically silent to the U3S.
+- **U3S:** being retired. Was originally on its own QLG1 connection
+  (4-way header), with the Pi sharing via the 6-way tap. After the
+  2026-05-11 GPS swap the Pi no longer shares the QLG1 with the U3S —
+  the two systems are now electrically independent.
 - **rpi-agent monitor:** also installed on this Pi (separate concern,
   part of the wider Node-RED RPi Fleet Monitor). Publishes
   cpu/temp/mem/disk/uptime/ip/status to MQTT broker at 192.168.1.169
@@ -175,11 +204,14 @@ sudo systemsetup -getnetworktimeserver  # Should report gpsntp.local
      entry under "Integration with the shack" above.
    - Install `log2ram` if the Pi has been running for many months and
      SD-card wear is a concern (BUILD.md "Optional" section).
-   - Add a second GPS for redundancy (NEO-M8N + dedicated antenna)
-     under chrony as a second refclock — wiring, config, and
-     validation steps are written up in **FUTURE.md**. Originally
-     motivated by U3S RFI fears; that motivation is fading as the U3S
-     is being replaced, so this is now general hot-spare redundancy.
+   - ~~Add a second GPS for redundancy under chrony as a second
+     refclock~~ — originally written up in FUTURE.md when the M8N
+     was meant to back up the QLG1. The 2026-05-11 swap promoted the
+     M8N to *primary*, so this task is obsolete in its original form.
+     If hot-spare redundancy is wanted again, the now-stand-alone
+     QLG1 (or any other GPS with NMEA+PPS) is a reasonable second
+     refclock — the wiring/config pattern is in git history (any
+     commit prior to the swap will show the second-refclock skeleton).
    - OLED status display showing fix/sat-count/offset.
 3. **Don't re-litigate ESP32 vs Pi** — that decision is made and the
    build is operational. If the user wants to redo it, they'll say so.

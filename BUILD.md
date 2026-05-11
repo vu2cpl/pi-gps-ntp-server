@@ -1,13 +1,23 @@
 # GPS-disciplined NTP server — build procedure
 
-**Hardware:** Raspberry Pi 3 Model B + QRP Labs QLG1 (tapped from the U3S
-beacon) + chrony + gpsd.
+**Hardware:** Raspberry Pi 3 Model B + a 3.3 V or 5 V GPS module with
+NMEA + PPS + chrony + gpsd.
 
 **Target:** Stratum 1, sub-microsecond local clock, microsecond-class
 accuracy delivered to LAN clients over Ethernet.
 
 See `HANDOVER.md` for project context (who, why, decisions made). This
 file is the procedure.
+
+> **Note on hardware history:** the procedure below was originally
+> written for a **QRP Labs QLG1** tapped off a U3S beacon (5 V outputs,
+> hence the 2 × 2.2 kΩ + 2 × 3.3 kΩ dividers in Stage 3). On 2026-05-11
+> the GPS was swapped to a dedicated **GY-NEO8MV2 (u-blox NEO-M8N)**
+> breakout, which is 3.3 V-native — **skip the dividers** in Stage 3
+> and wire TX / PPS / GND straight to Pi pins 10 / 12 / 6, plus VCC to
+> a 5 V pin (the GY-NEO8MV2 has an on-board LDO). Every other stage
+> applies unchanged because the kernel sees the same `/dev/serial0`
+> and `/dev/pps0`. See HANDOVER.md "GPS swap" for the rationale.
 
 Follow the stages top-to-bottom. Each stage ends with a verification step.
 Don't move on until verification passes — chasing a problem two stages
@@ -17,14 +27,20 @@ later is much harder than fixing it where it appears.
 
 ## What you need on hand
 
-**Already owned:**
+**Already owned (or repurposed):**
 - Raspberry Pi 3 Model B
 - microSD card, 16 GB or larger, decent quality (Samsung Evo / SanDisk Ultra)
 - Pi 5 V 2.5 A micro-USB power supply
 - Ethernet cable to your LAN switch
-- QRP Labs U3S with QLG1 attached, working, with sky-view antenna
 
-**To buy / scrounge (cheap):**
+**GPS module — pick one:**
+- **GY-NEO8MV2 / u-blox NEO-M8N** (current build): 3.3 V-native NMEA
+  + PPS, patch antenna with u.FL pigtail in the box. Direct connect to
+  the Pi, no dividers needed.
+- **QRP Labs QLG1** (original build, tapped from a U3S): 5 V NMEA + PPS,
+  requires the voltage divider in Stage 3.
+
+**For the QLG1 path only (skip if using a 3.3 V module):**
 - 2 × 2.2 kΩ resistors (series — between QLG1 outputs and Pi GPIOs)
 - 2 × 3.3 kΩ resistors (pulldown — to GND)
 - (1.8 kΩ + 3.3 kΩ also works if that's what you have — gives 3.24 V instead
@@ -34,8 +50,8 @@ later is much harder than fixing it where it appears.
 - (Optional) heat-shrink tubing if you make permanent solder joints
 
 That's it. No SDR, no logic analyzer, no oscilloscope required. A
-multimeter is nice for sanity-checking the divider voltages but not
-mandatory.
+multimeter is useful for confirming module output voltage (3.3 V vs
+5 V) before wiring to the Pi, and for sanity-checking divider output.
 
 ---
 

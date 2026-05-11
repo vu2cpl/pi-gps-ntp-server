@@ -1,12 +1,18 @@
 # Pi GPS NTP Server
 
-Stratum-1 GPS-disciplined NTP server on a Raspberry Pi 3B, sharing the
-QRP Labs QLG1 GPS receiver that already feeds a U3S beacon transmitter
-so no extra GPS hardware is needed.
+Stratum-1 GPS-disciplined NTP server on a Raspberry Pi 3B with a
+dedicated u-blox NEO-M8N GPS module feeding the shack LAN.
 
-Achieved at first run: **stratum 1, PPS error ±152 ns, system clock 35 ns
-slow of GPS truth, skew 0.009 ppm**. Mac client disciplined to within
-1–4 ms over LAN (limited by macOS scheduling jitter, not by the server).
+Performance after burn-in: **stratum 1, PPS error ±171 ns, system clock
+20 ns fast of GPS truth, skew 0.004 ppm, root dispersion 22 µs**. Mac
+client disciplined to within 1–4 ms over LAN (limited by macOS
+scheduling jitter, not by the server).
+
+The first build (2026-05-09) tapped an existing QRP Labs QLG1 that was
+also feeding a U3S beacon, with voltage dividers; the GPS was swapped
+to the dedicated NEO-M8N on 2026-05-11 when the U3S was retired (see
+HANDOVER.md "GPS swap"). The QLG1 path remains valid — see git history
+for that wiring if you want to rebuild it.
 
 ## Why this and not an ESP32?
 
@@ -26,18 +32,18 @@ that matters once a Pi is on the table:
 
 Full reasoning in [HANDOVER.md](HANDOVER.md).
 
-## Hardware
+## Hardware (current build)
 
 - Raspberry Pi 3B (any 64-bit Pi with wired Ethernet works).
-- QRP Labs **QLG1** GPS receiver (MediaTek chipset, 10 ns RMS PPS).
-  This build taps the unused **6-way** header so the existing 4-way
-  connection to a U3S is left untouched. If you don't run a U3S, any
-  5 V- or 3.3 V-output GPS with NMEA + PPS works.
-- 2 × 2.2 kΩ + 2 × 3.3 kΩ resistors as voltage dividers — the QLG1
-  outputs 5 V logic and the Pi GPIO is **not 5 V tolerant**. Skip the
-  dividers if your GPS is 3.3 V native.
-- Active GPS antenna with sky view.
+- **GY-NEO8MV2** breakout (u-blox NEO-M8N, ~30 ns RMS PPS). 3.3 V-native
+  TX and PPS, so TX → Pi GPIO15 (pin 10) and PPS → Pi GPIO18 (pin 12)
+  go direct, no level-shifting needed.
+- Patch antenna on u.FL pigtail with sky view (ships with the GY-NEO8MV2).
 - Wired Ethernet to the LAN.
+
+Any GPS with 3.3 V or 5 V NMEA + PPS works in this role. For a 5 V
+output (like the original QLG1), add 2 × 2.2 kΩ + 2 × 3.3 kΩ voltage
+dividers on TX and PPS before the Pi (Pi GPIO is **not** 5 V tolerant).
 
 ## Software stack
 
@@ -54,16 +60,16 @@ Full reasoning in [HANDOVER.md](HANDOVER.md).
   at each stage, troubleshooting section.
 - **[HANDOVER.md](HANDOVER.md)** — project context, decisions made
   along the way, operational checks for future maintenance.
-- **[FUTURE.md](FUTURE.md)** — parked tasks, including a fleshed-out
-  NEO-M8N redundant-GPS plan that's ready to pick up.
+- **[FUTURE.md](FUTURE.md)** — parked / completed extensions.
 - **[dashboard/](dashboard/)** — optional MQTT status broadcast: a
   Pi-side cron publisher, an importable Node-RED dashboard flow, and
   a macOS SwiftBar menu-bar widget. All read off one retained topic.
 
 ## Status
 
-Operational since 2026-05-09 in the VU2CPL shack. See HANDOVER.md
-"Operational checks" for diagnosis commands.
+Operational in the VU2CPL shack since 2026-05-09 (first on a QLG1 tap,
+on a dedicated NEO-M8N since 2026-05-11). See HANDOVER.md "Operational
+checks" for diagnosis commands.
 
 ## License
 
