@@ -54,6 +54,27 @@ dividers on TX and PPS before the Pi (Pi GPIO is **not** 5 V tolerant).
 - `chrony` with `refclock PPS lock NMEA refid PPS` and `allow` for the
   LAN subnet.
 
+## Quick start
+
+```sh
+git clone https://github.com/vu2cpl/pi-gps-ntp-server.git
+cd pi-gps-ntp-server
+./install.sh
+```
+
+`install.sh` auto-detects platform:
+- on the **Pi** it installs gpsd / chrony / mosquitto-clients, configures
+  UART + PPS overlays, sets up the chrony refclocks and the MQTT
+  publisher, and smoke-tests everything;
+- on a **Mac** it installs SwiftBar + mosquitto + Pillow and drops the
+  menu-bar plugin into your SwiftBar plugins folder.
+
+Both halves are idempotent — safe to re-run. The script prompts for the
+broker IP and a couple of other values, but you can hit return through
+the defaults for the VU2CPL shack setup.
+
+For a hand-built rebuild without the installer, see `BUILD.md`.
+
 ## Documentation
 
 - **[BUILD.md](BUILD.md)** — step-by-step build procedure, verification

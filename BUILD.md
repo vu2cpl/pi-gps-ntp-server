@@ -9,6 +9,15 @@ accuracy delivered to LAN clients over Ethernet.
 See `HANDOVER.md` for project context (who, why, decisions made). This
 file is the procedure.
 
+> **Shortcut for impatient readers:** an interactive `install.sh` at the
+> repo root automates stages 4 through 9 of this document (boot config,
+> gpsd, chrony, MQTT publisher, smoke test). Run it on the Pi *after*
+> you have flashed the SD card, booted, and wired the GPS module per
+> Stage 3. The script is idempotent — safe to re-run, skips work that
+> is already done. The manual procedure below remains the canonical
+> reference if you want to understand what every line is doing or build
+> by hand.
+
 > **Note on hardware history:** the procedure below was originally
 > written for a **QRP Labs QLG1** tapped off a U3S beacon (5 V outputs,
 > hence the 2 × 2.2 kΩ + 2 × 3.3 kΩ dividers in Stage 3). On 2026-05-11
