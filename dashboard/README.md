@@ -107,6 +107,46 @@ Prereq: `node-red-dashboard` palette must be installed
 > node uses the hyphen (`mqtt-broker`). Get this wrong and Node-RED
 > rejects the flow at import time as "unknown types".
 
+### Dashboard theme
+
+The `chrony-card-template.html` and the `node-red-flow.json` snippet
+target the **GitHub-dark palette** used across the rest of the VU2CPL
+shack dashboard (`vu2cpl-shack` repo):
+
+| Token | Value |
+|-------|-------|
+| Page / app background | `#0d1117` |
+| Card background       | `#161b22` |
+| Border / row divider  | `#30363d` |
+| Foreground text       | `#c9d1d9` |
+| Muted / secondary     | `#8b949e` |
+| Accent (info)         | `#58a6ff` |
+| LED green (good)      | `#3fb950` |
+| LED amber (warn)      | `#e3b341` |
+| LED red (bad)         | `#f85149` |
+
+The card uses vanilla JS DOM updates (`getElementById` +
+`scope.$watch('msg', …)` — no AngularJS interpolation bindings),
+matching the convention used by other custom widgets in
+`vu2cpl-shack`. The bundled `ui_group` has `disp: false` (the
+template provides its own title) and is sized to width 10.
+
+### Upgrading an existing chrony card
+
+If you already have the older (teal `#5cd0d6`) version deployed and
+just want the new palette without re-importing the whole flow:
+
+1. Open the existing `Chrony status card` ui_template node in the
+   Node-RED editor.
+2. Select-all in the Template body and paste in the full contents of
+   `dashboard/chrony-card-template.html`. Done → Deploy.
+3. *(Optional)* Open the hosting `ui_group` properties — set Display
+   = false (the template carries its own title) and Width = 10 to
+   match the shipped snippet.
+
+Position / group membership are preserved by the in-place template
+edit — only the rendering style changes.
+
 ## Mac menu-bar install
 
 ```sh

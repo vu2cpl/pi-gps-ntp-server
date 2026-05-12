@@ -1,25 +1,37 @@
 <style>
 .gpsntp-card {
-  background: #0e151e;
-  border: 1px solid #1c2530;
+  /* GitHub-dark palette — matches the rest of the VU2CPL shack dashboard */
+  --bg:     #0d1117;
+  --card:   #161b22;
+  --border: #30363d;
+  --text:   #c9d1d9;
+  --strong: #e6edf3;
+  --muted:  #8b949e;
+  --accent: #58a6ff;
+  --green:  #3fb950;
+  --amber:  #e3b341;
+  --red:    #f85149;
+
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   width: 100%;
-  padding: 14px 16px 14px;
+  padding: 14px 16px;
   font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
   font-size: 13px;
-  color: #cdd6e0;
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
   box-sizing: border-box;
 }
 .gpsntp-card .ttl {
-  color: #5cd0d6;
+  color: var(--strong);
   font-weight: 600;
   font-size: 14px;
   margin: 0 0 10px;
   letter-spacing: 0.02em;
 }
 .gpsntp-card .sect {
-  color: #5cd0d6;
+  color: var(--muted);
   text-align: center;
   font-size: 11px;
   font-weight: 500;
@@ -27,10 +39,10 @@
   margin: 12px 0 8px;
   user-select: none;
 }
-.gpsntp-card .sect:before, .gpsntp-card .sect:after {
+.gpsntp-card .sect:before,
+.gpsntp-card .sect:after {
   content: "\2014\2014\2014";
-  color: #5cd0d6;
-  opacity: 0.7;
+  color: var(--border);
   margin: 0 8px;
   letter-spacing: -1px;
 }
@@ -38,24 +50,26 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 0;
-  border-bottom: 1px solid #1a232c;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
   gap: 10px;
 }
 .gpsntp-card .row:last-of-type { border-bottom: none; }
 .gpsntp-card .lab {
-  color: #cdd6e0;
+  color: var(--text);
   font-size: 12.5px;
 }
 .gpsntp-card .val {
-  color: #e6edf3;
+  color: var(--strong);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-feature-settings: "tnum";
   font-size: 12.5px;
 }
-.gpsntp-card .val.attn { color: #e89a4a; }
+.gpsntp-card .val.attn { color: var(--amber); }
 .gpsntp-card .chip {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 1px 10px;
   border-radius: 12px;
   font-size: 11px;
@@ -67,23 +81,34 @@
   font-feature-settings: "tnum";
   white-space: nowrap;
 }
-.gpsntp-card .chip.good { color: #5cd36e; }
-.gpsntp-card .chip.info { color: #5cd0d6; }
-.gpsntp-card .chip.warn { color: #e89a4a; }
-.gpsntp-card .chip.bad  { color: #e57373; }
+.gpsntp-card .chip.good { color: var(--green); }
+.gpsntp-card .chip.info { color: var(--accent); }
+.gpsntp-card .chip.warn { color: var(--amber); }
+.gpsntp-card .chip.bad  { color: var(--red); }
+.gpsntp-card .led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  background: currentColor;
+  box-shadow: 0 0 4px currentColor;
+}
 .gpsntp-card .gps-val {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #e6edf3;
+  color: var(--strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-feature-settings: "tnum";
+  font-size: 12.5px;
 }
 .gpsntp-card .ftr {
   margin-top: 12px;
   padding-top: 9px;
-  border-top: 1px solid #1a232c;
+  border-top: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
-  color: #7d8896;
+  color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-feature-settings: "tnum";
   font-size: 11.5px;
@@ -92,69 +117,70 @@
 </style>
 
 <div class="gpsntp-card">
-  <h3 class="ttl">🛰 {{data.title}}</h3>
+  <h3 class="ttl">🛰 <span id="gpsntp-title">GPS Time Server</span></h3>
 
   <div class="sect">SYNC STATUS</div>
 
   <div class="row">
     <span class="lab">Reference</span>
-    <span class="chip" ng-class="data.ref_class">{{data.ref_text}}</span>
+    <span class="chip info" id="gpsntp-ref"><span class="led"></span><span class="t">—</span></span>
   </div>
   <div class="row">
     <span class="lab">Stratum</span>
-    <span class="chip" ng-class="data.stratum_class">{{data.stratum}}</span>
+    <span class="chip info" id="gpsntp-stratum"><span class="led"></span><span class="t">—</span></span>
   </div>
   <div class="row">
     <span class="lab">System offset</span>
-    <span class="val" ng-class="{attn: data.sys_off_attn}">{{data.sys_off}}</span>
+    <span class="val" id="gpsntp-sys">—</span>
   </div>
   <div class="row">
     <span class="lab">RMS offset</span>
-    <span class="val" ng-class="{attn: data.rms_attn}">{{data.rms}}</span>
+    <span class="val" id="gpsntp-rms">—</span>
   </div>
   <div class="row">
     <span class="lab">Root dispersion</span>
-    <span class="val" ng-class="{attn: data.root_disp_attn}">{{data.root_disp}}</span>
+    <span class="val" id="gpsntp-rd">—</span>
   </div>
   <div class="row">
     <span class="lab">Skew</span>
-    <span class="val" ng-class="{attn: data.skew_attn}">{{data.skew}}</span>
+    <span class="val" id="gpsntp-skew">—</span>
   </div>
   <div class="row">
     <span class="lab">Leap</span>
-    <span class="val">{{data.leap}}</span>
+    <span class="val" id="gpsntp-leap">—</span>
   </div>
   <div class="row">
     <span class="lab">GPS</span>
-    <span class="val gps-val">
-      <span class="chip" ng-class="data.fix_class">{{data.fix_text}}</span>{{data.sat_used}}&nbsp;/&nbsp;{{data.sat_seen}}
+    <span class="gps-val">
+      <span class="chip info" id="gpsntp-fix"><span class="led"></span><span class="t">—</span></span>
+      <span id="gpsntp-sats">—</span>
     </span>
   </div>
 
   <div class="ftr">
-    <span>{{data.utc_time}}</span>
-    <span>{{data.ago}}</span>
+    <span id="gpsntp-utc">—</span>
+    <span id="gpsntp-ago">—</span>
   </div>
 </div>
 
 <script>
 (function(scope) {
   var DASH = '—';
+  var lastTs = 0;
 
-  scope.data = scope.data || {
-    title: 'GPS Time Server',
-    ts: 0,
-    ref_text: DASH, ref_class: 'info',
-    stratum: DASH, stratum_class: 'info',
-    sys_off: DASH, sys_off_attn: false,
-    rms: DASH, rms_attn: false,
-    root_disp: DASH, root_disp_attn: false,
-    skew: DASH, skew_attn: false,
-    leap: DASH,
-    fix_text: DASH, fix_class: 'info',
-    sat_used: DASH, sat_seen: DASH,
-    utc_time: DASH, ago: DASH
-  };
+  function $(id)       { return document.getElementById(id); }
+  function setText(id, txt) { var el = $(id); if (el) el.textContent = txt; }
+  function setChip(id, txt, cls) {
+    var el = $(id); if (!el) return;
+    el.className = 'chip ' + cls;
+    var t = el.querySelector('.t');
+    if (t) t.textContent = txt;
+  }
+  function setVal(id, txt, attn) {
+    var el = $(id); if (!el) return;
+    el.textContent = txt;
+    el.className = 'val' + (attn ? ' attn' : '');
+  }
 
   function fmtSigned(v) {
     if (v === undefined || v === null) return DASH;
@@ -202,49 +228,41 @@
     return 'bad';
   }
 
-  function rebuild(p) {
+  function render(p) {
     var sys = p.system_time_offset_s || 0;
     var rms = p.rms_offset_s         || 0;
     var rd  = p.root_dispersion_s    || 0;
     var sk  = p.skew_ppm             || 0;
-    return {
-      title:           'GPS Time Server',
-      ts:              p.ts || 0,
-      ref_text:        p.ref_name || DASH,
-      ref_class:       classifyRef(p.ref_name),
-      stratum:         (p.stratum === undefined ? DASH : p.stratum),
-      stratum_class:   classifyStratum(p.stratum),
-      sys_off:         fmtSigned(sys),
-      sys_off_attn:    Math.abs(sys) > 1e-3,
-      rms:             fmtAbs(rms),
-      rms_attn:        rms > 1e-3,
-      root_disp:       fmtAbs(rd),
-      root_disp_attn:  rd > 5e-3,
-      skew:            sk.toFixed(3) + ' ppm',
-      skew_attn:       Math.abs(sk) > 1,
-      leap:            p.leap || DASH,
-      fix_text:        p.fix_mode === 3 ? '3D'
-                     : p.fix_mode === 2 ? '2D'
-                     : 'no fix',
-      fix_class:       classifyFix(p.fix_mode),
-      sat_used:        (p.sat_used === undefined ? DASH : p.sat_used),
-      sat_seen:        (p.sat_seen === undefined ? DASH : p.sat_seen),
-      utc_time:        utcTime(p.ts || 0),
-      ago:             agoText(p.ts || 0)
-    };
+    lastTs  = p.ts || 0;
+
+    setChip('gpsntp-ref',     p.ref_name || DASH,                       classifyRef(p.ref_name));
+    setChip('gpsntp-stratum', (p.stratum === undefined ? DASH : p.stratum), classifyStratum(p.stratum));
+    setVal ('gpsntp-sys',     fmtSigned(sys),         Math.abs(sys) > 1e-3);
+    setVal ('gpsntp-rms',     fmtAbs(rms),            rms > 1e-3);
+    setVal ('gpsntp-rd',      fmtAbs(rd),             rd  > 5e-3);
+    setVal ('gpsntp-skew',    sk.toFixed(3) + ' ppm', Math.abs(sk) > 1);
+    setText('gpsntp-leap',    p.leap || DASH);
+
+    var fixText = p.fix_mode === 3 ? '3D'
+                : p.fix_mode === 2 ? '2D'
+                : 'no fix';
+    setChip('gpsntp-fix', fixText, classifyFix(p.fix_mode));
+    setText('gpsntp-sats',
+      (p.sat_used === undefined ? DASH : p.sat_used) + ' / ' +
+      (p.sat_seen === undefined ? DASH : p.sat_seen));
+
+    setText('gpsntp-utc', utcTime(lastTs));
+    setText('gpsntp-ago', agoText(lastTs));
   }
 
   scope.$watch('msg', function(msg) {
     if (!msg || !msg.payload) return;
-    scope.data = rebuild(msg.payload);
+    render(msg.payload);
   });
 
   if (!scope._gpsntpTicker) {
     scope._gpsntpTicker = setInterval(function() {
-      if (scope.data && scope.data.ts) {
-        scope.data.ago = agoText(scope.data.ts);
-        try { scope.$apply(); } catch (e) {}
-      }
+      if (lastTs) setText('gpsntp-ago', agoText(lastTs));
     }, 5000);
     scope.$on('$destroy', function() {
       clearInterval(scope._gpsntpTicker);

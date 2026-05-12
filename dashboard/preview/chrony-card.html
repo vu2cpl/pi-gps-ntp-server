@@ -6,21 +6,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root {
-  --page-bg:    #0a0e13;
-  --card-bg:    #0e151e;
-  --card-border:#1c2530;
-  --row-divider:#1a232c;
+  /* GitHub-dark palette — matches the rest of the VU2CPL shack dashboard */
+  --page-bg:    #0d1117;
+  --card-bg:    #161b22;
+  --card-border:#30363d;
+  --row-divider:#30363d;
 
-  --fg:         #cdd6e0;
-  --muted:      #7d8896;
-  --section:    #5cd0d6;   /* cyan section labels  */
-  --value:      #e6edf3;   /* normal numbers       */
-  --attention:  #e89a4a;   /* orange — only when something is off */
+  --fg:         #c9d1d9;
+  --muted:      #8b949e;
+  --section:    #8b949e;   /* muted section labels (was teal)        */
+  --value:      #e6edf3;   /* normal numbers                         */
+  --attention:  #e3b341;   /* amber — only when something is off     */
 
-  --chip-good:  #5cd36e;
-  --chip-info:  #5cd0d6;
-  --chip-warn:  #e89a4a;
-  --chip-bad:   #e57373;
+  --chip-good:  #3fb950;
+  --chip-info:  #58a6ff;
+  --chip-warn:  #e3b341;
+  --chip-bad:   #f85149;
 }
 
 body {
@@ -57,7 +58,7 @@ body {
 }
 
 .card-title {
-  color: var(--section);
+  color: var(--value);
   font-weight: 600;
   font-size: 14px;
   margin: 0 0 10px;
@@ -79,8 +80,7 @@ body {
 .section::before,
 .section::after {
   content: "———";
-  color: var(--section);
-  opacity: 0.7;
+  color: var(--row-divider);
   margin: 0 8px;
   letter-spacing: -1px;
 }
@@ -108,9 +108,11 @@ body {
   color: var(--attention);
 }
 
-/* outlined rounded chip — matches the band / blocked-callsign style */
+/* outlined rounded chip with optional color-coded LED dot */
 .chip {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 1px 10px;
   border-radius: 12px;
   font-size: 11px;
@@ -126,6 +128,14 @@ body {
 .chip.info   { color: var(--chip-info); }
 .chip.warn   { color: var(--chip-warn); }
 .chip.bad    { color: var(--chip-bad);  }
+.chip .led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  background: currentColor;
+  box-shadow: 0 0 4px currentColor;
+}
 
 .fix-row .value {
   display: inline-flex;
@@ -169,11 +179,11 @@ body {
     <div class="section">SYNC STATUS</div>
     <div class="row">
       <span class="label">Reference</span>
-      <span class="chip good">PPS</span>
+      <span class="chip good"><span class="led"></span>PPS</span>
     </div>
     <div class="row">
       <span class="label">Stratum</span>
-      <span class="chip good">1</span>
+      <span class="chip good"><span class="led"></span>1</span>
     </div>
     <div class="row">
       <span class="label">System offset</span>
@@ -198,7 +208,7 @@ body {
     <div class="row fix-row">
       <span class="label">GPS</span>
       <span class="value">
-        <span class="chip good">3D</span>9&nbsp;/&nbsp;12
+        <span class="chip good"><span class="led"></span>3D</span>9&nbsp;/&nbsp;12
       </span>
     </div>
 
@@ -215,11 +225,11 @@ body {
     <div class="section">SYNC STATUS</div>
     <div class="row">
       <span class="label">Reference</span>
-      <span class="chip info">pool</span>
+      <span class="chip info"><span class="led"></span>pool</span>
     </div>
     <div class="row">
       <span class="label">Stratum</span>
-      <span class="chip warn">2</span>
+      <span class="chip warn"><span class="led"></span>2</span>
     </div>
     <div class="row">
       <span class="label">System offset</span>
@@ -244,7 +254,7 @@ body {
     <div class="row fix-row">
       <span class="label">GPS</span>
       <span class="value">
-        <span class="chip bad">no fix</span>0&nbsp;/&nbsp;0
+        <span class="chip bad"><span class="led"></span>no fix</span>0&nbsp;/&nbsp;0
       </span>
     </div>
 
