@@ -204,6 +204,15 @@ Pi or to anything actively transmitting.
   authentication; this publisher uses the `svc` account, with
   `MQTT_USER`/`MQTT_PASS` set as env lines in `/etc/cron.d/gpsntp-mqtt`
   (chmod 600). `install.sh` prompts for them. Empty ⇒ anonymous.
+  **Optional TLS (2026-11-01, PR #1 by Vinod VU3ESV):** the publisher
+  and the SwiftBar plugin also take `MQTT_PORT` and `MQTT_CAFILE`
+  (e.g. `8883` + the broker's `ca.crt`). Both empty ⇒ plain MQTT on
+  1883, exactly as before. A reference TLS broker config is in
+  `dashboard/mosquitto/` (`shack-tls.conf`, `acl.example`). On the
+  Mac, `install.sh` now rewrites only the `MQTT_*` lines of the shared
+  `~/.config/vu2cpl-shack.env` and keeps every other key (`HA_*`,
+  `UNIFI_*`, …), with the old file saved as `.bak`. Nothing already
+  installed changes until `install.sh` is re-run.
   Two consumers: a "GPS NTP" tab in the Node-RED dashboard, and a
   macOS SwiftBar menu-bar widget that shows live stratum / offset /
   sat count and is one click away from the dashboard. Scripts, flow
