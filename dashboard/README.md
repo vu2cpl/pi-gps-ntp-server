@@ -43,8 +43,10 @@ broker or topic without editing files:
 |---|---|---|
 | `MQTT_BROKER` | publisher + plugin | `192.168.1.169` |
 | `MQTT_TOPIC` | publisher + plugin | `shack/gpsntp/chrony` |
-| `MQTT_USER` | publisher (auth) | *(empty = anonymous)* |
-| `MQTT_PASS` | publisher (auth) | *(empty)* |
+| `MQTT_USER` | publisher + plugin (auth) | *(empty = anonymous)* |
+| `MQTT_PASS` | publisher + plugin (auth) | *(empty)* |
+| `MQTT_PORT` | publisher + plugin | *(empty = 1883)* |
+| `MQTT_CAFILE` | publisher + plugin (TLS) | *(empty = plain MQTT)* |
 | `NODE_RED_URL` | plugin (dropdown link only) | `http://192.168.1.169:1880/ui` |
 
 If the broker requires auth, set `MQTT_USER` / `MQTT_PASS` (empty user ⇒
@@ -63,6 +65,60 @@ the shell env reliably, so the plugin sources
 mkdir -p ~/.config
 printf 'MQTT_BROKER=192.168.1.169\nMQTT_USER=svc\nMQTT_PASS=<svc-password>\n' > ~/.config/vu2cpl-shack.env
 chmod 600 ~/.config/vu2cpl-shack.env
+```
+
+`install.sh` asks for all of these on both the Pi and the Mac, and writes
+the cron env for you. On the Mac it updates only the `MQTT_*` lines of
+`~/.config/vu2cpl-shack.env`. Other keys in that shared file (`HA_*`,
+`UNIFI_*`, ...) are kept, and the previous file is saved as `.bak`.
+
+## Broker with TLS (optional)
+
+MQTT passwords over plain port 1883 cross the LAN in clear. If the broker
+is yours to configure, a reference setup lives in
+[`mosquitto/`](mosquitto/):
+
+- [`shack-tls.conf`](mosquitto/shack-tls.conf): anonymous off, a
+  loopback-only plain listener for a publisher on the broker's own Pi,
+  and **8883 with TLS** for everything on the LAN.
+- [`acl.example`](mosquitto/acl.example): one account per client, the
+  publisher write-only and the SwiftBar plugin read-only.
+
+A private CA plus a server certificate for the broker's addresses (put
+every IP / name clients use in `subjectAltName`):
+
+```bash
+cd /etc/mosquitto/certs
+sudo openssl ecparam -name prime256v1 -genkey -noout -out ca.key
+sudo openssl req -x509 -new -key ca.key -sha256 -days 3650 -subj "/CN=Shack MQTT CA" \
+  -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" -out ca.crt
+sudo openssl ecparam -name prime256v1 -genkey -noout -out server.key
+sudo openssl req -new -key server.key -subj "/CN=broker" -out server.csr
+printf 'basicConstraints=CA:FALSE\nextendedKeyUsage=serverAuth\nsubjectAltName=IP:192.168.1.169,DNS:mqttbroker.shack\n' | \
+  sudo openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 1825 -sha256 -extfile /dev/stdin -out server.crt
+sudo chown mosquitto:mosquitto server.key && sudo chmod 600 server.key ca.key
+```
+
+Accounts: `sudo mosquitto_passwd -c /etc/mosquitto/passwd gpsntp-pub` (it
+prompts; drop `-c` for the second user), then `chown mosquitto:mosquitto`
+and `chmod 600`. Copy `ca.crt` to each LAN client and set `MQTT_PORT=8883`
+and `MQTT_CAFILE=<path to ca.crt>`.
+
+Check from a client: `openssl s_client -connect <broker>:8883 -CAfile ca.crt`
+should end in `Verify return code: 0 (ok)`.
+
+**Keeping passwords off the process list.** `MQTT_PASS` ends up on
+`mosquitto_pub` / `mosquitto_sub`'s command line, where `ps` can see it
+for a moment. The clients also read default options from a per-user file,
+`~/.config/mosquitto_pub` and `~/.config/mosquitto_sub` (root's for the
+cron job), one option per line. Leave `MQTT_USER` / `MQTT_PASS` /
+`MQTT_PORT` / `MQTT_CAFILE` empty and put them there instead (chmod 600):
+
+```
+-p 8883
+--cafile /Users/you/.config/mqtt-ca.crt
+-u swiftbar
+-P <password>
 ```
 
 ## Pi-side install

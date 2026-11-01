@@ -44,6 +44,14 @@ ask() {
   fi
 }
 
+ask_secret() {
+  # ask_secret <prompt> → echoes the answer; typing is not shown
+  local reply
+  read -r -s -p "${YELLOW}?${RESET} $1 " reply
+  echo >&2
+  echo "$reply"
+}
+
 confirm() {
   # confirm <prompt> [default-yes|default-no] → returns 0 if yes
   local prompt="$1" default="${2:-default-yes}" reply
@@ -99,7 +107,12 @@ EOM
   MQTT_TOPIC="$(ask 'MQTT topic' 'shack/gpsntp/chrony')"
   MQTT_USER="$(ask 'MQTT username (blank = anonymous)' '')"
   MQTT_PASS=""
-  [ -n "$MQTT_USER" ] && MQTT_PASS="$(ask 'MQTT password' '')"
+  [ -n "$MQTT_USER" ] && MQTT_PASS="$(ask_secret 'MQTT password')"
+  # TLS: a LAN listener such as 8883 plus the broker's CA certificate. A
+  # broker on this same Pi can stay plain on a loopback-only listener
+  # (broker 127.0.0.1) -- see dashboard/README.md "Broker with TLS".
+  MQTT_PORT="$(ask 'MQTT port (blank = 1883)' '')"
+  MQTT_CAFILE="$(ask 'Broker CA certificate file for TLS (blank = plain MQTT)' '')"
   # One CIDR per network that must be SERVED.  chrony answers only sources
   # inside an `allow` -- everything else is dropped silently, with no log
   # and no ICMP.  After the 2026-08-18 VLAN split the shack had three
@@ -222,6 +235,8 @@ MQTT_BROKER=${MQTT_BROKER}
 MQTT_TOPIC=${MQTT_TOPIC}
 ${MQTT_USER:+MQTT_USER=${MQTT_USER}}
 ${MQTT_PASS:+MQTT_PASS=${MQTT_PASS}}
+${MQTT_PORT:+MQTT_PORT=${MQTT_PORT}}
+${MQTT_CAFILE:+MQTT_CAFILE=${MQTT_CAFILE}}
 
 * * * * * root /usr/local/bin/gpsntp-mqtt-publish.sh >/dev/null 2>&1
 EOF
@@ -264,10 +279,17 @@ EOF
   if [ -n "$MQTT_BROKER" ]; then
     echo
     info "Test-publishing one snapshot..."
-    if sudo /usr/local/bin/gpsntp-mqtt-publish.sh; then
+    # Same env the cron job gets (broker, auth, TLS), read by root from the
+    # chmod-600 cron file so the password never lands on a command line.
+    if sudo bash -c 'set -a; . <(grep "^MQTT_" /etc/cron.d/gpsntp-mqtt); set +a
+                     exec /usr/local/bin/gpsntp-mqtt-publish.sh'; then
       ok "MQTT publish succeeded"
-      info "Subscribe sanity:"
-      mosquitto_sub -h "$MQTT_BROKER" -t "$MQTT_TOPIC" -C 1 -W 3 2>/dev/null \
+      info "Subscribe sanity (warns if the ACL makes this account write-only):"
+      SUB_ARGS=(-h "$MQTT_BROKER" -t "$MQTT_TOPIC" -C 1 -W 3)
+      [ -n "$MQTT_USER" ]   && SUB_ARGS+=(-u "$MQTT_USER" -P "$MQTT_PASS")
+      [ -n "$MQTT_PORT" ]   && SUB_ARGS+=(-p "$MQTT_PORT")
+      [ -n "$MQTT_CAFILE" ] && SUB_ARGS+=(--cafile "$MQTT_CAFILE")
+      mosquitto_sub "${SUB_ARGS[@]}" 2>/dev/null \
         | jq -c '{ref_name, stratum, fix_mode, sat_used, sat_seen}' 2>/dev/null \
         | sed 's/^/      /' || warn "Could not subscribe (broker reachable?)"
     fi
@@ -322,13 +344,21 @@ EOM
   # ----- config ------------------------------------------------------------
   section "Configuration"
   MQTT_BROKER="$(ask 'MQTT broker IP' '192.168.1.169')"
+  MQTT_PORT="$(ask 'MQTT port (1883 plain, 8883 TLS)' '1883')"
+  MQTT_CAFILE=""
+  if [ "$MQTT_PORT" != 1883 ]; then
+    MQTT_CAFILE="$(ask 'Broker CA certificate file (blank = plain MQTT)' "$HOME/.config/mqtt-ca.crt")"
+  fi
+  MQTT_USER="$(ask 'MQTT username (blank = anonymous)' '')"
+  MQTT_PASS=""
+  [ -n "$MQTT_USER" ] && MQTT_PASS="$(ask_secret 'MQTT password')"
   NODE_RED_URL="$(ask 'Node-RED dashboard URL (for the dropdown link)' \
                        "http://${MQTT_BROKER}:1880/ui")"
 
-  if /usr/bin/nc -z -w 2 "$MQTT_BROKER" 1883 2>/dev/null; then
-    ok "Broker $MQTT_BROKER:1883 is reachable"
+  if /usr/bin/nc -z -w 2 "$MQTT_BROKER" "$MQTT_PORT" 2>/dev/null; then
+    ok "Broker $MQTT_BROKER:$MQTT_PORT is reachable"
   else
-    warn "Broker $MQTT_BROKER:1883 unreachable — installing anyway"
+    warn "Broker $MQTT_BROKER:$MQTT_PORT unreachable — installing anyway"
     info "The widget will show '🛰 ??' until the broker comes up."
   fi
 
@@ -389,6 +419,36 @@ EOM
       -e "s|NODE_RED_URL:-http://192\\.168\\.1\\.169:1880/ui|NODE_RED_URL:-${NODE_RED_URL}|" \
       "$PLUGINS_DIR/gpsntp.30s.sh"
     ok "Plugin patched"
+  fi
+
+  # ----- broker settings for the plugin --------------------------------------
+  # SwiftBar doesn't inherit the shell env, so the plugin sources this file.
+  # The file is shared with other shack scripts (HA_*, UNIFI_*, ...): only
+  # our own MQTT_* keys are replaced, every other line is kept as it is.
+  ENV_FILE="$HOME/.config/vu2cpl-shack.env"
+  if [ -n "$MQTT_USER" ] || [ "$MQTT_PORT" != 1883 ]; then
+    section "Writing broker settings"
+    mkdir -p "$HOME/.config"
+    if [ -s "$ENV_FILE" ]; then
+      chmod 600 "$ENV_FILE"   # an old file keeps its mode, and its .bak copies it
+      cp -p "$ENV_FILE" "$ENV_FILE.bak"
+      info "Previous settings kept in $ENV_FILE.bak"
+    fi
+    ( umask 077; touch "$ENV_FILE" )
+    tmp="$(mktemp "$ENV_FILE.XXXXXX")"   # same directory, so the mv below is atomic; mode 600
+    # grep ends every kept line with a newline, so the appends never run
+    # into an unterminated last line.
+    grep -v -E '^[[:space:]]*(export[[:space:]]+)?(MQTT_BROKER|MQTT_PORT|MQTT_CAFILE|MQTT_USER|MQTT_PASS)=' \
+      "$ENV_FILE" > "$tmp" || true
+    {
+      echo "MQTT_BROKER=$MQTT_BROKER"
+      if [ "$MQTT_PORT" != 1883 ]; then echo "MQTT_PORT=$MQTT_PORT"; fi
+      if [ -n "$MQTT_CAFILE" ]; then echo "MQTT_CAFILE=$MQTT_CAFILE"; fi
+      if [ -n "$MQTT_USER" ]; then printf 'MQTT_USER=%s\nMQTT_PASS=%s\n' "$MQTT_USER" "$MQTT_PASS"; fi
+    } >> "$tmp"
+    chmod 600 "$tmp"
+    mv "$tmp" "$ENV_FILE"
+    ok "MQTT_* settings updated in $ENV_FILE (other keys kept, chmod 600)"
   fi
 
   # ----- test --------------------------------------------------------------

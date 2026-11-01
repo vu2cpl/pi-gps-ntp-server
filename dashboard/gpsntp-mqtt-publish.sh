@@ -17,6 +17,8 @@
 # Optional environment overrides (set in /etc/cron.d/gpsntp-mqtt):
 #   MQTT_BROKER=192.168.1.169     # broker host
 #   MQTT_TOPIC=shack/gpsntp/chrony
+#   MQTT_PORT=8883                # TLS listener (empty = client default 1883)
+#   MQTT_CAFILE=/etc/gpsntp/mqtt-ca.crt   # broker CA cert; set ⇒ TLS
 #
 set -u
 
@@ -28,6 +30,11 @@ TOPIC="${MQTT_TOPIC:-shack/gpsntp/chrony}"
 # MQTT_USER ⇒ anonymous connect, backward-compatible.
 AUTH=""
 [ -n "${MQTT_USER:-}" ] && AUTH="-u $MQTT_USER -P $MQTT_PASS"
+# Optional TLS: MQTT_PORT (e.g. 8883) and MQTT_CAFILE (the broker's CA
+# certificate). Both empty ⇒ plain MQTT, as before.
+TLS=""
+[ -n "${MQTT_PORT:-}" ] && TLS="-p $MQTT_PORT"
+[ -n "${MQTT_CAFILE:-}" ] && TLS="$TLS --cafile $MQTT_CAFILE"
 HOST="$(hostname)"
 TS="$(date +%s)"
 
@@ -65,4 +72,4 @@ EOF
 )
 
 # ----- publish (retained, so subscribers get the latest snapshot on connect) -----
-mosquitto_pub -h "$BROKER" $AUTH -t "$TOPIC" -m "$JSON" -r
+mosquitto_pub -h "$BROKER" $AUTH $TLS -t "$TOPIC" -m "$JSON" -r

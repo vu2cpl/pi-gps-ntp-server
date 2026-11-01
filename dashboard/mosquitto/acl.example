@@ -1,0 +1,14 @@
+# /etc/mosquitto/acl — reference ACL: one account per client, least privilege.
+# Install: chown mosquitto:mosquitto /etc/mosquitto/acl && chmod 600 /etc/mosquitto/acl
+
+# The chrony/GPS publisher (gpsntp-mqtt-publish.sh) only ever writes.
+user gpsntp-pub
+topic write shack/gpsntp/#
+
+# The SwiftBar menu-bar plugin only reads.
+user swiftbar
+topic read shack/gpsntp/#
+
+# A Node-RED dashboard reading the same snapshot would get its own account:
+# user nodered
+# topic read shack/gpsntp/#
