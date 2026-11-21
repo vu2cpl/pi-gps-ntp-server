@@ -279,10 +279,12 @@ Verdict thresholds:
 - **CRIT** — no 3D fix, or chrony has fallen off PPS discipline (refid
   not `PPS`, or stratum > 1).
 
-**Known bug (found 2026-11-22, not yet fixed):** `rms=` reads field 6
-of `chronyc -c tracking`. That field is *Last offset* (signed), so the
-log shows values like `rms=-2031ns`. RMS offset is field 7. The fix is
-`cut -d, -f6` → `-f7` on the `rms=` line of `~/bin/gpshealth`.
+**Fixed 2026-11-22:** `rms=` used to read field 6 of
+`chronyc -c tracking`. That field is *Last offset* (signed), so older log
+lines show values like `rms=-2031ns`. The `rms=` line now reads field 7
+(RMS offset). Backup of the old script: `~/bin/gpshealth.bak-2026-11-22`.
+For reference, the `-c` fields are: 2 refid, 3 stratum, 5 system time
+offset, 6 last offset, 7 RMS offset.
 
 Watch live:
 
