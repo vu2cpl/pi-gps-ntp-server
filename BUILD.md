@@ -654,6 +654,21 @@ that's normal. The Pi *itself* is the stratum-1 source. If you point WSJT-X
 or any application that reads system time at the Mac, that's what gets the
 microsecond-class time, modulo macOS scheduling jitter.
 
+### Journal full of avahi `not fitting in legacy unicast packet` warnings
+
+A router or mDNS proxy on the LAN sends large mDNS queries from a
+non-5353 port. avahi cannot fit a reply in the 512-byte limit, so it logs
+a warning for every record it drops. In this shack the UniFi gateway
+caused about 700 lines per hour. Pi OS keeps the journal in RAM only, so
+these lines push out the older logs. Stop avahi advertising the
+`_workstation._tcp` service. `gpsntp.local` still resolves, because name
+lookups use the host's address records, not that service:
+
+```sh
+sudo sed -i 's/^publish-workstation=yes$/publish-workstation=no/' /etc/avahi/avahi-daemon.conf
+sudo systemctl restart avahi-daemon
+```
+
 ---
 
 ## What "done" looks like

@@ -98,7 +98,8 @@ current chrony logging config.
 Rolling health is monitored on the Pi by a small `gpshealth` script
 (`~/bin/gpshealth`, started at boot by `gpshealth.service`) — one
 coloured line every 30 s to `/tmp/gpshealth.log` and the systemd
-journal. Details in HANDOVER.md.
+journal. Both live in RAM and are cleared on reboot. Details in
+HANDOVER.md.
 
 ## License
 

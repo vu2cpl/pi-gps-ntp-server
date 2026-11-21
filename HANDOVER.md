@@ -57,6 +57,27 @@ the Pi answers, both steer the same clock; pick one. And confirm an ESP
 on VLAN 30 actually syncs (e.g. `esp8266-gps-ntp` logs) — the allow line
 is in, the end-to-end check on the IoT side is not done.
 
+## Health check 2026-11-22 — gpshealth enabled, avahi log spam stopped
+
+Uptime 4 d 11 h (boot 2026-11-17 13:11 IST). chrony and gpsd started
+38 s after boot, 0 restarts. Stratum 1 on PPS, offset −1.4 µs,
+±443 ns. 45 °C, not throttled. Found and fixed on the Pi (Manoj's go):
+
+1. **`gpshealth.service` was disabled.** The unit and script were in
+   place, but `systemctl enable` had never been run, so the monitor did
+   not start after a reboot. There were no journal lines and no
+   `/tmp/gpshealth.log`. Fixed with `sudo systemctl enable --now gpshealth`.
+2. **avahi wrote ~700 warnings per hour.** The journal is RAM-only and
+   capped at ~18 MB, so it reached back only ~22 h. Fixed with
+   `publish-workstation=no`. See Known gotchas.
+3. **The docs said the journal survives reboots.** It doesn't, because
+   Pi OS ships `Storage=volatile`. Corrected here and in README.md.
+
+**Left for Manoj:** `NetworkManager-wait-online.service` shows `failed`
+for the 2026-11-17 boot. NTP is not affected (chrony and gpsd came up
+normally). The reason had already rotated out of the journal. Run
+`journalctl -b -u NetworkManager-wait-online` soon after the next reboot.
+
 ## GPS swap — 2026-05-11
 
 Originally the Pi tapped the QRP Labs **QLG1** that was already feeding
@@ -238,10 +259,15 @@ sudo systemsetup -getnetworktimeserver  # Should report gpsntp.local
 
 Installed 2026-07-31 at `/home/vu2cpl/bin/gpshealth`, started at boot by
 `gpshealth.service` (systemd unit at `/etc/systemd/system/gpshealth.service`,
-runs as user `vu2cpl` after `chrony.service` and `gpsd.service`). Samples
-`gpspipe` + `chronyc tracking` every 30 s, prints one coloured line, and
-appends to `/tmp/gpshealth.log` (systemd also captures stdout to the
-journal, which survives reboots).
+runs as user `vu2cpl` after `chrony.service` and `gpsd.service`). The unit
+was not enabled until 2026-11-22, so before that it did not run after a
+reboot. On a rebuild, copy both files and run
+`sudo systemctl enable --now gpshealth`. Samples `gpspipe` +
+`chronyc tracking` every 30 s, prints one coloured line, and appends it
+to `/tmp/gpshealth.log`. systemd also captures stdout to the journal.
+Both are RAM-only: `/tmp` is tmpfs, and Pi OS sets the journal to
+`Storage=volatile` (capped at ~18 MB, 10 % of `/run`). Both are cleared
+on reboot.
 
 ```
 12:00:18 OK   SVs= 6 mode=3 TDOP=1.54 stratum=1 refid=PPS off=42ns rms=7ns
@@ -253,11 +279,16 @@ Verdict thresholds:
 - **CRIT** — no 3D fix, or chrony has fallen off PPS discipline (refid
   not `PPS`, or stratum > 1).
 
+**Known bug (found 2026-11-22, not yet fixed):** `rms=` reads field 6
+of `chronyc -c tracking`. That field is *Last offset* (signed), so the
+log shows values like `rms=-2031ns`. RMS offset is field 7. The fix is
+`cut -d, -f6` → `-f7` on the `rms=` line of `~/bin/gpshealth`.
+
 Watch live:
 
 ```sh
-journalctl -u gpshealth -f          # durable, across reboots
-tail -f /tmp/gpshealth.log          # RAM-backed via log2ram, cleared on reboot
+journalctl -u gpshealth -f          # RAM journal, cleared on reboot
+tail -f /tmp/gpshealth.log          # tmpfs, cleared on reboot
 ```
 
 Both the script (`~/bin/gpshealth`) and the systemd unit are Pi-local —
@@ -310,6 +341,43 @@ remember to revert to `log tracking` when the investigation is done.
 
 Rescue procedure if it fills again: `sudo rm /var/log/chrony/*.log.[123]`
 frees the rotated generations immediately.
+
+### avahi floods the journal when the router scans mDNS
+
+**Symptom.** About 700 lines per hour of `avahi-daemon: Record [...] not
+fitting in legacy unicast packet, dropping.` As a result, the RAM-only
+journal reached back only ~22 h.
+
+**Cause.** The UniFi gateway (`192.168.1.1`; the same queries also come
+from `.10.1` and `.30.1`) sends mDNS queries every ~11 s from a random
+source port. mDNS calls this "legacy unicast". One query asks about 32
+service types and is 867 bytes long. A legacy-unicast answer must repeat
+the questions and fit in 512 bytes, so avahi can never fit a reply. It
+logs one warning per record it drops. The records were the Pi's only
+advertised service, `_workstation._tcp`, plus the A/AAAA records that
+go with it. Found 2026-11-22 with a short `AF_PACKET` Python sniffer
+(tcpdump is not installed on the Pi).
+
+**Fix (2026-11-22).** Set `publish-workstation=no` in
+`/etc/avahi/avahi-daemon.conf` (backup at
+`/etc/avahi/avahi-daemon.conf.bak-2026-11-22`) and ran
+`systemctl restart avahi-daemon`. The Pi now advertises no services, so
+avahi has nothing to try to answer with. `gpsntp.local` still resolves,
+because that uses the host A/AAAA records, not the workstation service.
+If a service is ever added under `/etc/avahi/services/`, the warnings
+may come back for it. In that case, change the gateway's mDNS settings
+(see `vlan-setup`).
+
+### systemd says services started "2026-05-09" after every boot
+
+The Pi has no RTC and no `fake-hwclock`. At boot, systemd sets the clock
+to the date of `/var/lib/systemd/timesync/clock`. Nothing updates that
+file, because chrony replaced `systemd-timesyncd`, so it is stuck at
+2026-05-09 19:30. Anything that starts before chrony steps the clock gets
+that date. For example, `systemctl status chrony` reads "active since Sat
+2026-05-09". The wrong date is only cosmetic. For true uptime use
+`uptime -s`. For how long a service has run, use
+`systemctl show <unit> -p ActiveEnterTimestampMonotonic` (µs since boot).
 
 ## Things explicitly *not* in scope
 
