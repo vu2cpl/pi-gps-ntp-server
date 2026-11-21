@@ -73,10 +73,9 @@ Uptime 4 d 11 h (boot 2026-11-17 13:11 IST). chrony and gpsd started
 3. **The docs said the journal survives reboots.** It doesn't, because
    Pi OS ships `Storage=volatile`. Corrected here and in README.md.
 
-**Left for Manoj:** `NetworkManager-wait-online.service` shows `failed`
-for the 2026-11-17 boot. NTP is not affected (chrony and gpsd came up
-normally). The reason had already rotated out of the journal. Run
-`journalctl -b -u NetworkManager-wait-online` soon after the next reboot.
+**`NetworkManager-wait-online.service` failed at the 2026-11-17 boot.**
+Diagnosed 2026-11-22: it was a power cut, and the router was still booting.
+NTP was not affected. See Known gotchas.
 
 ## GPS swap — 2026-05-11
 
@@ -369,6 +368,34 @@ because that uses the host A/AAAA records, not the workstation service.
 If a service is ever added under `/etc/avahi/services/`, the warnings
 may come back for it. In that case, change the gateway's mDNS settings
 (see `vlan-setup`).
+
+### After a power cut, `NetworkManager-wait-online` shows `failed`
+
+The 2026-11-17 13:11 boot came after a power cut: noderedpi4 booted 3 s
+after gpsntp. The journal from that boot was gone, but these facts
+survive in systemd and the kernel log:
+
+- `eth0` link came up 44 s after boot (`dmesg`).
+- `nm-online -s` ran from 42 s to 102 s, reached its 60 s limit
+  (`NM_ONLINE_TIMEOUT=60`) and exited with code 1 (timed out).
+
+eth0 uses DHCP, so NetworkManager does not count the network as up until
+DHCP answers. The router and switches most likely lost power too and
+were still booting. The Pi got its lease from `192.168.1.1` later.
+
+**Impact: none on NTP.** chrony does not wait for the network. Only
+cloud-init's `cloud-config` and `cloud-final`, and gpshealth (by
+`After=`), are ordered after `network-online.target`. They start anyway
+when the wait times out. The `failed` mark stays until the next boot, so
+health checks list it. Ignore it after a power cut. If it appears after
+a normal reboot while the router was up, investigate.
+
+**Power cuts also lose logs.** log2ram writes `/var/log` to the SD card
+only at its daily 23:55 save and at a clean shutdown. chrony's
+`tracking.log` has gaps that start at 23:55 and end at a boot on
+2026-11-07 22:51, 2026-11-16 15:26 and 2026-11-17 13:12 IST. So the Pi
+lost power (or crashed) three times in ten days. Each time it lost up to
+a day of `/var/log`.
 
 ### systemd says services started "2026-05-09" after every boot
 
