@@ -87,7 +87,11 @@ gpshealth started by itself at boot, and the network wait passed in 10 s. The
 3B+ is clean on gpsntp's old cable. **Open item:** check that gpsntp stays at
 `throttled=0x0` (`vcgencmd get_throttled`). If it shows under-voltage, the cable
 it now has is bad: replace it. The daily shack-health check reports it either
-way.
+way. The first 40 minutes were clean: a once-a-minute watch from 10:22 to
+10:52 saw no change, and at 10:56 it still read `0x0` with PPS at stratum 1.
+`get_throttled`'s "has occurred" bits stay set until the next reboot, so the
+07:15 check on 2026-11-23 shows whether anything happened overnight. Close
+this item if it reads `0x0` then.
 
 ## GPS swap — 2026-05-11
 
