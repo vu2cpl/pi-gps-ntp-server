@@ -75,7 +75,8 @@ Uptime 4 d 11 h (boot 2026-11-17 13:11 IST). chrony and gpsd started
 
 **`NetworkManager-wait-online.service` failed at the 2026-11-17 boot.**
 Diagnosed 2026-11-22: it was a power cut, and the router was still booting.
-NTP was not affected. See Known gotchas.
+NTP was not affected. The wait limit is now 300 s instead of 60 s. See
+Known gotchas.
 
 ## GPS swap — 2026-05-11
 
@@ -387,8 +388,18 @@ were still booting. The Pi got its lease from `192.168.1.1` later.
 cloud-init's `cloud-config` and `cloud-final`, and gpshealth (by
 `After=`), are ordered after `network-online.target`. They start anyway
 when the wait times out. The `failed` mark stays until the next boot, so
-health checks list it. Ignore it after a power cut. If it appears after
-a normal reboot while the router was up, investigate.
+health checks list it.
+
+**Fix (2026-11-22, Manoj's go).** The limit is now 300 s, set by the
+drop-in `/etc/systemd/system/NetworkManager-wait-online.service.d/timeout.conf`
+(`Environment=NM_ONLINE_TIMEOUT=300`). systemd's own start timeout is
+already disabled for this oneshot unit, so nm-online's limit is the one
+that counts. A normal boot is not slower: the wait ends as soon as DHCP
+answers. After a power cut, gpshealth, cloud-init's last stages and the
+apt jobs can start up to 5 min late. chrony and the cron-driven MQTT
+publisher (`~/monitor.sh`) are not affected. If the unit still fails,
+the router took more than 5 min to answer, or DHCP is broken:
+investigate.
 
 **Power cuts also lose logs.** log2ram writes `/var/log` to the SD card
 only at its daily 23:55 save and at a clean shutdown. chrony's

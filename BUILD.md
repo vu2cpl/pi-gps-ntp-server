@@ -669,6 +669,19 @@ sudo sed -i 's/^publish-workstation=yes$/publish-workstation=no/' /etc/avahi/ava
 sudo systemctl restart avahi-daemon
 ```
 
+### `NetworkManager-wait-online.service` failed after a power cut
+
+When the power comes back, the Pi boots faster than the router.
+`nm-online` gives up after 60 s if DHCP has not answered, and the unit
+shows `failed`. NTP is not affected, because chrony does not wait for
+the network. To give the router 5 minutes:
+
+```sh
+sudo mkdir -p /etc/systemd/system/NetworkManager-wait-online.service.d
+printf '[Service]\nEnvironment=NM_ONLINE_TIMEOUT=300\n' | sudo tee /etc/systemd/system/NetworkManager-wait-online.service.d/timeout.conf
+sudo systemctl daemon-reload
+```
+
 ---
 
 ## What "done" looks like
