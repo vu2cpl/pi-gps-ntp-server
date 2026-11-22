@@ -78,6 +78,17 @@ Diagnosed 2026-11-22: it was a power cut, and the router was still booting.
 NTP was not affected. The wait limit is now 300 s instead of 60 s. See
 Known gotchas.
 
+**gpsntp now runs on a suspect power cable (10:15 IST).** The idle Pi 3B+
+(`openwebrxplus`, `.142`) shares gpsntp's 5 V supply and showed constant
+under-voltage, while gpsntp did not. To find out whether the 3B+'s cable was
+the cause, Manoj swapped the micro-USB cables of the two Pis. gpsntp restarted
+at 10:15:29 and came back clean: `throttled=0x0`, PPS at stratum 1,
+gpshealth started by itself at boot, and the network wait passed in 10 s. The
+3B+ is clean on gpsntp's old cable. **Open item:** check that gpsntp stays at
+`throttled=0x0` (`vcgencmd get_throttled`). If it shows under-voltage, the cable
+it now has is bad: replace it. The daily shack-health check reports it either
+way.
+
 ## GPS swap — 2026-05-11
 
 Originally the Pi tapped the QRP Labs **QLG1** that was already feeding
